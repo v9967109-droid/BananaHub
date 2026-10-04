@@ -20382,6 +20382,251 @@ SettingsVolcanoSection.CreateDropdown(
 		SaveSettings("Select Method Kill Golem", g)
 	end
 )
+FarmingMultiVulcanoSection = VolcanoTab.CreateSection("Farming Multi Vulcano")
+
+function DetectMultiPrehistoricPlayers()
+	local players = {}
+	for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
+		if player ~= t then
+			players[player.Name] = false
+		end
+	end
+	return players
+end
+
+DropdownSelectPlayerMultiPrehistoric = FarmingMultiVulcanoSection.CreateDropdown(
+	{
+		Title = "Select Players",
+		List = PrepareMultiSelectList(DetectMultiPrehistoricPlayers(), Settings["Select Player Multi Prehistoric Island"]),
+		Search = true,
+		Selected = true,
+		Default = Settings["Select Player Multi Prehistoric Island"] or nil,
+	},
+	function(g, f)
+		SaveSettings("Select Player Multi Prehistoric Island", g, f)
+	end
+)
+FarmingMultiVulcanoSection.CreateButton({ Title = "Refresh Player" }, function()
+	DropdownSelectPlayerMultiPrehistoric:GetNewList(DetectMultiPrehistoricPlayers())
+end)
+
+local function GetSelectedMultiPrehistoricPlayers()
+	local selected = {}
+	local setting = Settings["Select Player Multi Prehistoric Island"]
+	if type(setting) ~= "table" then
+		return selected
+	end
+	for name, enabled in pairs(setting) do
+		if enabled == true then
+			local player = game:GetService("Players"):FindFirstChild(name)
+			if player and player ~= t then
+				table.insert(selected, player)
+			end
+		end
+	end
+	return selected
+end
+
+local function GetMultiPrehistoricBoat()
+	local boats = game:GetService("Workspace"):FindFirstChild("Boats")
+	if not boats then
+		return false
+	end
+	for _, boat in ipairs(boats:GetChildren()) do
+		if boat:IsA("Model") and boat:FindFirstChild("Owner") and tostring(boat.Owner.Value) == t.Name then
+			local humanoid = boat:FindFirstChild("Humanoid")
+			if humanoid and humanoid.Value > 0 then
+				return boat
+			end
+		end
+	end
+	return false
+end
+
+local function IsMultiPrehistoricPlayerOnBoat(player, boat)
+	if not player or not boat or not player.Character then
+		return false
+	end
+	local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+	local root = player.Character:FindFirstChild("HumanoidRootPart")
+	if not humanoid or not root or not humanoid.Sit then
+		return false
+	end
+	for _, cannon in ipairs(boat:GetDescendants()) do
+		if cannon.Name == "Cannon" then
+			local seat = cannon:FindFirstChild("Seat")
+			if seat and seat:IsA("Seat") then
+				local weld = seat:FindFirstChild("SeatWeld")
+				if weld and (root.Position - seat.Position).Magnitude <= 12 then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+local function AreSelectedMultiPrehistoricPlayersOnBoat(boat)
+	local selected = GetSelectedMultiPrehistoricPlayers()
+	if #selected == 0 then
+		return false
+	end
+	for _, player in ipairs(selected) do
+		if not IsMultiPrehistoricPlayerOnBoat(player, boat) then
+			return false
+		end
+	end
+	return true
+end
+
+local function BuyMultiPrehistoricBoat()
+	local boat = GetMultiPrehistoricBoat()
+	if boat then
+		return boat
+	end
+	local spawnCFrame = CFrame.new(-16204.0810546875, 9.0863618850708, 479.2259521484375)
+	if t.Character and t.Character:FindFirstChild("HumanoidRootPart") then
+		if (spawnCFrame.Position - t.Character.HumanoidRootPart.Position).Magnitude > 8 then
+			toTarget(spawnCFrame)
+		else
+			game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyBoat", "PirateBrigade")
+			task.wait(3)
+		end
+	end
+	return GetMultiPrehistoricBoat()
+end
+
+local function StopMultiPrehistoricBoatMovement(boat)
+	if getgenv().TweenBoat then
+		getgenv().TweenBoat:Pause()
+		getgenv().TweenBoat:Cancel()
+	end
+	if getgenv().TweenBoatBack then
+		getgenv().TweenBoatBack:Pause()
+		getgenv().TweenBoatBack:Cancel()
+	end
+	if boat then
+		pcall(function()
+			TurnOffNoclipBoat(boat)
+		end)
+	end
+end
+
+local function StartMultiPrehistoricBoatMovement(boat)
+	if not boat then
+		return
+	end
+	NoclipBoat(boat)
+end
+
+local function SelectedMultiPrehistoricPlayersReachedIsland()
+	local selected = GetSelectedMultiPrehistoricPlayers()
+	if #selected == 0 then
+		return false
+	end
+	for _, player in ipairs(selected) do
+		local character = player.Character
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not root or not workspace.Map:FindFirstChild("PrehistoricIsland") then
+			return false
+		end
+		local island = workspace.Map.PrehistoricIsland
+		local islandPosition
+		if island.PrimaryPart then
+			islandPosition = island.PrimaryPart.Position
+		elseif island:FindFirstChild("Core") then
+			islandPosition = island.Core:GetPivot().Position
+		else
+			islandPosition = island:GetPivot().Position
+		end
+		if (root.Position - islandPosition).Magnitude > 1200 then
+			return false
+		end
+	end
+	return true
+end
+
+ToggleAutoMultiFindPrehistoricIsland = FarmingMultiVulcanoSection.CreateToggle(
+	{
+		Title = "Auto Multi Find Prehistoric Island",
+		Desc = "Compra o barco, espera apenas os players selecionados e depois usa a lógica normal de Auto Find Prehistoric Island.",
+		Default = Settings["Auto Multi Find Prehistoric Island"] or false,
+	},
+	function(g)
+		if g then
+			spawn(function()
+				while Settings["Auto Multi Find Prehistoric Island"] and wait(0.1) do
+					pcall(function()
+						local selected = GetSelectedMultiPrehistoricPlayers()
+						if #selected == 0 then
+							return
+						end
+						local boat = BuyMultiPrehistoricBoat()
+						if not boat then
+							return
+						end
+						if not AreSelectedMultiPrehistoricPlayersOnBoat(boat) then
+							StopMultiPrehistoricBoatMovement(boat)
+							if not t.Character.Humanoid.Sit and boat:FindFirstChild("VehicleSeat") then
+								toTarget(boat.VehicleSeat.CFrame)
+							end
+							return
+						end
+						if not game:GetService("Workspace").Map:FindFirstChild("PrehistoricIsland") then
+							StartMultiPrehistoricBoatMovement(boat)
+							-- A partir daqui usa exatamente a lógica normal de Find Prehistoric Island.
+							Settings["Auto Find Prehistoric Island"] = true
+							AutoFindPrehistoric()
+						else
+							Settings["Auto Find Prehistoric Island"] = false
+							Settings["Auto Multi Find Prehistoric Island"] = false
+							if ToggleAutoFindPrehistoricIsland then
+								ToggleAutoFindPrehistoricIsland:SetStage(false)
+							end
+							if ToggleAutoMultiFindPrehistoricIsland then
+								ToggleAutoMultiFindPrehistoricIsland:SetStage(false)
+							end
+							SaveSettings("Auto Multi Find Prehistoric Island", false)
+						end
+					end)
+				end
+			end)
+		end
+		SaveSettings("Auto Multi Find Prehistoric Island", g)
+	end
+)
+
+FarmingMultiVulcanoSection.CreateToggle(
+	{
+		Title = "Auto Multi Event Prehistoric Island",
+		Desc = "Espera os players selecionados na ilha antes de iniciar o evento e usa a lógica normal do Auto Event Prehistoric Island.",
+		Default = Settings["Auto Multi Event Prehistoric Island"] or false,
+	},
+	function(g)
+		if g then
+			spawn(function()
+				while Settings["Auto Multi Event Prehistoric Island"] and wait(0.1) do
+					pcall(function()
+						local selected = GetSelectedMultiPrehistoricPlayers()
+						if #selected == 0 or not workspace.Map:FindFirstChild("PrehistoricIsland") then
+							return
+						end
+						Settings["Auto Multi Find Prehistoric Island"] = false
+						if ToggleAutoMultiFindPrehistoricIsland then
+							ToggleAutoMultiFindPrehistoricIsland:SetStage(false)
+						end
+						if not SelectedMultiPrehistoricPlayersReachedIsland() then
+							return
+						end
+						AutoAttackVolcano()
+					end)
+				end
+			end)
+		end
+		SaveSettings("Auto Multi Event Prehistoric Island", g)
+	end
+)
+
 FarmingVolcanoSection = VolcanoTab.CreateSection("Farming Volcano")
 function AutoCraftinMagnetVol()
 	-- "Ignore Craft [ Fully ]" afeta só o Fully Event; este toggle avulso sempre craftea.
