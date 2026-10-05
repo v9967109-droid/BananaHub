@@ -20675,7 +20675,7 @@ function AutoFindPrehistoric()
 				end
 				toTarget(f)
 			else
-				game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyBoat", "PirateBrigade")
+				game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("BuyBoat", if Settings["Auto Multi Find Prehistoric Island"] then "Beast Hunter" else "PirateBrigade")
 				wait(3)
 			end
 		elseif t.Character.Humanoid.Sit then
@@ -20832,7 +20832,7 @@ function AutoAttackVolcano()
 							getgenv().KillMobRaid = false
 						end)
 					end
-				until not IsMobAlive(g) or not Settings["Auto Event Prehistoric Island"]
+				until not IsMobAlive(g) or not Settings["Auto Event Prehistoric Island"] and not Settings["Auto Multi Event Prehistoric Island"]
 			end
 			g = DetectRockVolcano()
 			if g then
@@ -20862,7 +20862,7 @@ function AutoAttackVolcano()
 							G.Target = g
 						until not g
 							or not g.Parent
-							or not Settings["Auto Event Prehistoric Island"]
+							or not Settings["Auto Event Prehistoric Island"] and not Settings["Auto Multi Event Prehistoric Island"]
 							or not g.VFXLayer.Specs.Enabled
 							or (DetectGolem())
 						f = DetectGolem()
@@ -20887,7 +20887,7 @@ function AutoAttackVolcano()
 						G.Target = g
 					until not g
 						or not g.Parent
-						or not Settings["Auto Event Prehistoric Island"]
+						or not Settings["Auto Event Prehistoric Island"] and not Settings["Auto Multi Event Prehistoric Island"]
 						or not g.VFXLayer.Specs.Enabled
 						or (DetectGolem())
 					f = DetectGolem()
@@ -21439,31 +21439,6 @@ FarmingMultiVulcnaoSection.CreateToggle(
 	end
 )
 
-function AutoMultiEventPrehistoric()
-	if not Settings["Auto Multi Event Prehistoric Island"] then
-		return
-	end
-	local selected = GetSelectedMultiPrehistoricPlayers()
-	if #selected == 0 then
-		return
-	end
-	local boat = checkboat()
-	if boat and not IsSelectedPlayersSeatedInMyBoat() then
-		local cannonSeat
-		for _, obj in ipairs(boat:GetDescendants()) do
-			if obj.Name == "Seat" and obj.Parent and obj.Parent.Name == "Cannon" and not obj:FindFirstChild("SeatWeld") then
-				cannonSeat = obj
-				break
-			end
-		end
-		if cannonSeat and not t.Character.Humanoid.Sit then
-			toTarget(cannonSeat.CFrame)
-		end
-		return
-	end
-	AutoAttackVolcano()
-end
-
 FarmingMultiVulcnaoSection.CreateToggle(
 	{ Title = "Auto Multi Event Prehistoric Island", Desc = "Same event logic as Auto Event Prehistoric Island", Default = Settings["Auto Multi Event Prehistoric Island"] or false },
 	function(value)
@@ -21471,7 +21446,7 @@ FarmingMultiVulcnaoSection.CreateToggle(
 			spawn(function()
 				while Settings["Auto Multi Event Prehistoric Island"] and wait(0.1) do
 					pcall(function()
-						AutoMultiEventPrehistoric()
+						AutoAttackVolcano()
 					end)
 				end
 			end)
